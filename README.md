@@ -2,20 +2,45 @@
 
 An MCP (Model Context Protocol) server that provides Claude Code with direct access to the Meta Quest Store. Wraps the `ovr-platform-util` CLI for build uploads, downloads, and release channel management, and uses the `graph.oculus.com` REST API for entitlement checks, leaderboards, and IAP queries.
 
+Supports multiple apps via a single config file.
+
 ## Setup
 
 ### 1. Get Your App Credentials
 
+For each app you want to manage:
+
 1. Go to the [Oculus Developer Dashboard](https://developer.oculus.com/manage/)
 2. Select your app
-3. Navigate to the **API** tab
-4. Copy the **App ID** and **App Secret**
+3. Navigate to **Development → API**
+4. Copy the **App ID** and **App Secret** (requires admin access)
 
-### 2. Install ovr-platform-util
+### 2. Create a Config File
+
+Create `~/meta-quest-config.json` (or wherever you prefer):
+
+```json
+{
+  "apps": {
+    "my-vr-game": {
+      "appId": "123456789",
+      "appSecret": "abc123..."
+    },
+    "my-other-app": {
+      "appId": "987654321",
+      "appSecret": "def456..."
+    }
+  }
+}
+```
+
+The keys (`my-vr-game`, `my-other-app`) are friendly names you'll use in tool calls.
+
+### 3. Install ovr-platform-util
 
 Download the Oculus Platform Utility for your OS from the [Meta developer downloads](https://developer.oculus.com/downloads/) page. This is required for build upload/download and release channel operations.
 
-### 3. Install
+### 4. Install
 
 ```bash
 cd meta-quest-mcp-server
@@ -23,7 +48,7 @@ npm install
 npm run build
 ```
 
-### 4. Configure Claude Code
+### 5. Configure Claude Code
 
 Add to `~/.claude/settings.json`:
 
@@ -34,8 +59,7 @@ Add to `~/.claude/settings.json`:
       "command": "node",
       "args": ["/path/to/meta-quest-mcp-server/dist/index.js"],
       "env": {
-        "META_APP_ID": "YOUR_APP_ID",
-        "META_APP_SECRET": "YOUR_APP_SECRET",
+        "META_QUEST_CONFIG": "/path/to/meta-quest-config.json",
         "OVR_PLATFORM_UTIL_PATH": "/path/to/ovr-platform-util"
       }
     }
@@ -48,6 +72,11 @@ Add to `~/.claude/settings.json`:
 Restart Claude Code to pick up the new MCP server.
 
 ## Available Tools
+
+### App Management
+| Tool | Description |
+|---|---|
+| `list_apps` | List all configured apps from your config file |
 
 ### Builds
 | Tool | Description |
@@ -73,6 +102,8 @@ Restart Claude Code to pick up the new MCP server.
 | `get_leaderboards` | List leaderboards for the app |
 | `get_iap_items` | List in-app purchase items |
 
+All tools (except `list_apps`) take an `appName` parameter — the friendly name from your config file.
+
 ## Release Channel Workflow
 
 Meta Quest uses release channels for beta testing. Every app gets four default channels:
@@ -96,6 +127,5 @@ Tester management is currently dashboard-only (no API available).
 
 | Variable | Required | Description |
 |---|---|---|
-| `META_APP_ID` | Yes | App ID from the Developer Dashboard API tab |
-| `META_APP_SECRET` | Yes | App Secret from the Developer Dashboard API tab |
+| `META_QUEST_CONFIG` | Yes | Path to JSON config file with app credentials |
 | `OVR_PLATFORM_UTIL_PATH` | No | Path to `ovr-platform-util` binary (if not on PATH) |

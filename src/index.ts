@@ -24,6 +24,22 @@ if (config) {
 
   const client = new MetaQuestClient(config);
 
+  // Built-in tool to list configured apps
+  server.tool(
+    'list_apps',
+    'List all configured Meta Quest apps',
+    {},
+    async () => {
+      const apps = client.listApps();
+      return {
+        content: [{
+          type: 'text' as const,
+          text: `Configured apps (${apps.length}):\n${apps.map(a => `  - ${a}`).join('\n')}`,
+        }],
+      };
+    }
+  );
+
   registerBuildTools(server, client);
   registerChannelTools(server, client);
   registerAddonTools(server, client);
@@ -36,67 +52,52 @@ if (config) {
     async () => {
       const errors = getConfigErrors();
 
-      const envVars: Record<string, { required: boolean; description: string }> = {
-        META_APP_ID: {
-          required: true,
-          description: 'Your App ID from the Oculus Developer Dashboard → API tab',
-        },
-        META_APP_SECRET: {
-          required: true,
-          description: 'Your App Secret from the Oculus Developer Dashboard → API tab',
-        },
-        OVR_PLATFORM_UTIL_PATH: {
-          required: false,
-          description: 'Absolute path to ovr-platform-util binary (optional if on PATH)',
-        },
-      };
-
       const statusLines: string[] = [];
-      for (const [name, info] of Object.entries(envVars)) {
-        const value = process.env[name];
-        const errorEntry = errors.find(e => e.variable === name);
-        if (errorEntry) {
-          statusLines.push(`  ${name}: MISSING — ${errorEntry.message}`);
-        } else if (value) {
-          statusLines.push(`  ${name}: Set`);
-        } else {
-          statusLines.push(`  ${name}: Not set${info.required ? ' (REQUIRED)' : ' (optional)'}`);
-        }
+      for (const e of errors) {
+        statusLines.push(`  ${e.variable}: ${e.message}`);
       }
-
-      const missingList = errors.map(e => `- ${e.variable}: ${e.message}`).join('\n');
 
       const message = `Meta Quest MCP Server - Setup Required
 
-This server needs the following environment variables configured in your Claude settings (~/.claude/settings.json):
+1. Create a config file (e.g. ~/meta-quest-config.json):
+
+{
+  "apps": {
+    "my-vr-game": {
+      "appId": "123456789",
+      "appSecret": "abc123..."
+    },
+    "my-other-app": {
+      "appId": "987654321",
+      "appSecret": "def456..."
+    }
+  }
+}
+
+2. Add to ~/.claude/settings.json:
 
 "meta-quest": {
   "command": "node",
   "args": ["C:/Users/docto/meta-quest-mcp-server/dist/index.js"],
   "env": {
-    "META_APP_ID": "your-app-id",
-    "META_APP_SECRET": "your-app-secret",
+    "META_QUEST_CONFIG": "C:/Users/docto/meta-quest-config.json",
     "OVR_PLATFORM_UTIL_PATH": "C:/path/to/ovr-platform-util.exe"
   }
 }
 
-How to get these values:
+How to get app credentials:
 1. Go to https://developer.oculus.com/manage/
-2. Select your app
-3. Navigate to the API tab
-4. Copy the App ID and App Secret
+2. Select your app → Development → API
+3. Copy the App ID and App Secret
+4. Add an entry to your config file for each app
 
 For build uploads, you also need ovr-platform-util:
-1. Download from https://developer.oculus.com/downloads/native-linux/ (or Windows/Mac)
-2. Set OVR_PLATFORM_UTIL_PATH to the binary path, or add it to your system PATH
+  Download from https://developer.oculus.com/downloads/
 
-Environment variable status:
+Issues found:
 ${statusLines.join('\n')}
 
-Missing:
-${missingList}
-
-After updating settings, restart Claude Code for changes to take effect.`;
+After updating, restart Claude Code for changes to take effect.`;
 
       return { content: [{ type: 'text' as const, text: message }] };
     }

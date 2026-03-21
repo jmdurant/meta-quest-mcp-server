@@ -8,11 +8,12 @@ export function registerAddonTools(server: McpServer, client: MetaQuestClient) {
     'upload_addon',
     'Upload a DLC/add-on asset to the Meta Quest Store',
     {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
       addonId: z.string().describe('Add-on/DLC ID'),
       assetsDir: z.string().describe('Absolute path to the assets directory'),
       channel: z.string().optional().describe('Release channel (default: ALPHA)'),
     },
-    async ({ addonId, assetsDir, channel }) => {
+    async ({ appName, addonId, assetsDir, channel }) => {
       try {
         const { existsSync } = await import('node:fs');
         if (!existsSync(assetsDir)) {
@@ -26,7 +27,7 @@ export function registerAddonTools(server: McpServer, client: MetaQuestClient) {
           '--channel', channel ?? 'ALPHA',
         ];
 
-        const { stdout, stderr } = await client.ovrCommand(args);
+        const { stdout, stderr } = await client.ovrCommand(appName, args);
 
         return {
           content: [{

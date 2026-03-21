@@ -8,19 +8,21 @@ export function registerBuildTools(server: McpServer, client: MetaQuestClient) {
     'upload_build',
     'Upload an APK to the Meta Quest Store via ovr-platform-util. Requires ovr-platform-util to be installed.',
     {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
       apkPath: z.string().describe('Absolute path to the APK file'),
       channel: z.string().optional().describe('Release channel (default: ALPHA)'),
       notes: z.string().optional().describe('Release notes for this build'),
       ageGroup: z.enum(['TEENS_AND_ADULTS', 'MIXED_AGES', 'CHILDREN']).optional()
         .describe('Age group certification (default: TEENS_AND_ADULTS)'),
     },
-    async ({ apkPath, channel, notes, ageGroup }) => {
+    async ({ appName, apkPath, channel, notes, ageGroup }) => {
       try {
         const { existsSync } = await import('node:fs');
         if (!existsSync(apkPath)) {
           return formatError(new Error(`APK file not found: ${apkPath}`));
         }
 
+        const app = client.getApp(appName);
         const args = [
           'upload-quest-build',
           '--apk', apkPath,
@@ -32,17 +34,16 @@ export function registerBuildTools(server: McpServer, client: MetaQuestClient) {
           args.push('--notes', notes);
         }
 
-        const { stdout, stderr } = await client.ovrCommand(args);
+        const { stdout, stderr } = await client.ovrCommand(appName, args);
         const output = (stdout + '\n' + stderr).trim();
 
-        // Try to extract build ID from output
         const buildIdMatch = output.match(/Build ID:\s*(\d+)/i) ?? output.match(/(\d{10,})/);
 
         return {
           content: [{
             type: 'text' as const,
             text: `Build uploaded successfully!\n` +
-              `App ID: ${client.getAppId()}\n` +
+              `App: ${appName} (${app.appId})\n` +
               `Channel: ${channel ?? 'ALPHA'}\n` +
               (buildIdMatch ? `Build ID: ${buildIdMatch[1]}\n` : '') +
               `\nOutput:\n${output}`,
@@ -58,10 +59,11 @@ export function registerBuildTools(server: McpServer, client: MetaQuestClient) {
     'download_build',
     'Download a build from the Meta Quest Store by build ID',
     {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
       buildId: z.string().describe('Build ID to download'),
       outputDir: z.string().describe('Absolute path to the output directory'),
     },
-    async ({ buildId, outputDir }) => {
+    async ({ appName, buildId, outputDir }) => {
       try {
         const { existsSync } = await import('node:fs');
         if (!existsSync(outputDir)) {
@@ -74,7 +76,7 @@ export function registerBuildTools(server: McpServer, client: MetaQuestClient) {
           '--download_dir', outputDir,
         ];
 
-        const { stdout, stderr } = await client.ovrCommand(args);
+        const { stdout, stderr } = await client.ovrCommand(appName, args);
 
         return {
           content: [{
@@ -92,11 +94,12 @@ export function registerBuildTools(server: McpServer, client: MetaQuestClient) {
     'upload_debug_symbols',
     'Upload debug symbols for a previously uploaded build',
     {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
       buildId: z.string().describe('Build ID to attach symbols to'),
       symbolsDir: z.string().describe('Absolute path to the debug symbols directory'),
       pattern: z.string().optional().describe('File pattern for symbols (e.g. "*.so")'),
     },
-    async ({ buildId, symbolsDir, pattern }) => {
+    async ({ appName, buildId, symbolsDir, pattern }) => {
       try {
         const { existsSync } = await import('node:fs');
         if (!existsSync(symbolsDir)) {
@@ -113,7 +116,7 @@ export function registerBuildTools(server: McpServer, client: MetaQuestClient) {
           args.push('--debug-symbols-pattern', pattern);
         }
 
-        const { stdout, stderr } = await client.ovrCommand(args);
+        const { stdout, stderr } = await client.ovrCommand(appName, args);
 
         return {
           content: [{

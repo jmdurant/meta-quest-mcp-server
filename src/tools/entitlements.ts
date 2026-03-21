@@ -8,12 +8,15 @@ export function registerEntitlementTools(server: McpServer, client: MetaQuestCli
     'verify_entitlement',
     'Verify whether a user is entitled to the app (owns it)',
     {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
       userId: z.string().describe('Oculus user ID to verify'),
     },
-    async ({ userId }) => {
+    async ({ appName, userId }) => {
       try {
+        const app = client.getApp(appName);
         const result = await client.graphRequest<{ is_entitled: boolean }>(
-          `/${client.getAppId()}/verify_entitlement`,
+          appName,
+          `/${app.appId}/verify_entitlement`,
           {
             method: 'POST',
             body: { user_id: userId },
@@ -23,7 +26,7 @@ export function registerEntitlementTools(server: McpServer, client: MetaQuestCli
         return {
           content: [{
             type: 'text' as const,
-            text: `User ${userId} entitlement: ${result.is_entitled ? 'ENTITLED' : 'NOT ENTITLED'}\n\n${JSON.stringify(result, null, 2)}`,
+            text: `User ${userId} entitlement for ${appName}: ${result.is_entitled ? 'ENTITLED' : 'NOT ENTITLED'}\n\n${JSON.stringify(result, null, 2)}`,
           }],
         };
       } catch (error) {
@@ -34,12 +37,16 @@ export function registerEntitlementTools(server: McpServer, client: MetaQuestCli
 
   server.tool(
     'get_leaderboards',
-    'List leaderboards for the app',
-    {},
-    async () => {
+    'List leaderboards for an app',
+    {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
+    },
+    async ({ appName }) => {
       try {
+        const app = client.getApp(appName);
         const result = await client.graphRequest<{ data: unknown[] }>(
-          `/${client.getAppId()}/leaderboards`
+          appName,
+          `/${app.appId}/leaderboards`
         );
 
         return {
@@ -56,12 +63,16 @@ export function registerEntitlementTools(server: McpServer, client: MetaQuestCli
 
   server.tool(
     'get_iap_items',
-    'List in-app purchase items (add-ons/DLC) for the app via Graph API',
-    {},
-    async () => {
+    'List in-app purchase items (add-ons/DLC) for an app via Graph API',
+    {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
+    },
+    async ({ appName }) => {
       try {
+        const app = client.getApp(appName);
         const result = await client.graphRequest<{ data: unknown[] }>(
-          `/${client.getAppId()}/iap_items`
+          appName,
+          `/${app.appId}/iap_items`
         );
 
         return {

@@ -1,38 +1,55 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { MetaQuestError } from './errors.js';
-import type { Config } from './config.js';
+import type { AppCredentials, Config } from './config.js';
 
 const execFileAsync = promisify(execFile);
 
 const GRAPH_API_BASE = 'https://graph.oculus.com';
 
 export class MetaQuestClient {
-  private appId: string;
-  private appSecret: string;
+  private apps: Record<string, AppCredentials>;
   private ovrPath: string;
 
   constructor(config: Config) {
-    this.appId = config.appId;
-    this.appSecret = config.appSecret;
+    this.apps = config.apps;
     this.ovrPath = config.ovrPlatformUtilPath ?? 'ovr-platform-util';
   }
 
-  get accessToken(): string {
-    return `OC|${this.appId}|${this.appSecret}`;
+  getApp(appName: string): AppCredentials {
+    const app = this.apps[appName];
+    if (!app) {
+      const available = Object.keys(this.apps).join(', ');
+      throw new MetaQuestError(
+        400,
+        'APP_NOT_FOUND',
+        `App "${appName}" not found in config. Available apps: ${available}`
+      );
+    }
+    return app;
+  }
+
+  listApps(): string[] {
+    return Object.keys(this.apps);
+  }
+
+  private accessToken(app: AppCredentials): string {
+    return `OC|${app.appId}|${app.appSecret}`;
   }
 
   // --- Graph API methods ---
 
-  async graphRequest<T>(path: string, options?: {
+  async graphRequest<T>(appName: string, path: string, options?: {
     method?: string;
     params?: Record<string, string>;
     body?: Record<string, string>;
   }): Promise<T> {
+    const app = this.getApp(appName);
+    const token = this.accessToken(app);
     const method = options?.method ?? 'GET';
     let url = `${GRAPH_API_BASE}${path}`;
 
-    const allParams = { ...options?.params, access_token: this.accessToken };
+    const allParams = { ...options?.params, access_token: token };
     const searchParams = new URLSearchParams(allParams);
 
     if (method === 'GET') {
@@ -43,7 +60,7 @@ export class MetaQuestClient {
     let reqBody: string | undefined;
 
     if (method === 'POST' && options?.body) {
-      const formData = new URLSearchParams({ ...options.body, access_token: this.accessToken });
+      const formData = new URLSearchParams({ ...options.body, access_token: token });
       reqBody = formData.toString();
       headers['Content-Type'] = 'application/x-www-form-urlencoded';
     }
@@ -76,8 +93,9 @@ export class MetaQuestClient {
 
   // --- CLI wrapper methods ---
 
-  async ovrCommand(args: string[]): Promise<{ stdout: string; stderr: string }> {
-    const fullArgs = [...args, '--app-id', this.appId, '--app-secret', this.appSecret];
+  async ovrCommand(appName: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+    const app = this.getApp(appName);
+    const fullArgs = [...args, '--app-id', app.appId, '--app-secret', app.appSecret];
 
     try {
       const result = await execFileAsync(this.ovrPath, fullArgs, {
@@ -96,9 +114,5 @@ export class MetaQuestClient {
       }
       throw error;
     }
-  }
-
-  getAppId(): string {
-    return this.appId;
   }
 }
