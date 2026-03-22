@@ -5,6 +5,38 @@ import { formatError } from '../errors.js';
 
 export function registerEntitlementTools(server: McpServer, client: MetaQuestClient) {
   server.tool(
+    'get_app_info',
+    'Get basic info about a Meta Quest app from the Graph API',
+    {
+      appName: z.string().describe('App name as configured in your meta-quest-config.json'),
+      fields: z.array(z.string()).optional()
+        .describe('Additional fields to request (default: id, display_name, platform)'),
+    },
+    async ({ appName, fields }) => {
+      try {
+        const app = client.getApp(appName);
+        const defaultFields = ['id', 'display_name', 'platform'];
+        const allFields = [...new Set([...defaultFields, ...(fields ?? [])])];
+
+        const result = await client.graphRequest<Record<string, unknown>>(
+          appName,
+          `/${app.appId}`,
+          { params: { fields: allFields.join(',') } }
+        );
+
+        return {
+          content: [{
+            type: 'text' as const,
+            text: JSON.stringify(result, null, 2),
+          }],
+        };
+      } catch (error) {
+        return formatError(error);
+      }
+    }
+  );
+
+  server.tool(
     'verify_entitlement',
     'Verify whether a user is entitled to the app (owns it)',
     {
