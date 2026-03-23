@@ -57,19 +57,17 @@ Add to your project's `.mcp.json` (or copy the one included in this repo):
   "mcpServers": {
     "meta-quest": {
       "command": "node",
-      "args": ["${HOME}/meta-quest-mcp-server/dist/index.js"],
+      "args": ["/path/to/meta-quest-mcp-server/dist/index.js"],
       "env": {
-        "HOME": "${USERPROFILE}",
-        "META_QUEST_CONFIG": "~/meta-quest-config.json"
+        "META_QUEST_CONFIG": "/path/to/meta-quest-config.json",
+        "OVR_PLATFORM_UTIL_PATH": "/path/to/ovr-platform-util"
       }
     }
   }
 }
 ```
 
-> The `"HOME": "${USERPROFILE}"` line ensures cross-platform compatibility (Windows sets `USERPROFILE`, macOS/Linux set `HOME`). On macOS/Linux you can remove it.
-
-`OVR_PLATFORM_UTIL_PATH` can be added to the `env` block if `ovr-platform-util` is not on your system PATH.
+`OVR_PLATFORM_UTIL_PATH` can be omitted if `ovr-platform-util` is on your system PATH.
 
 The server will guide you through setup if credentials are missing or invalid.
 
