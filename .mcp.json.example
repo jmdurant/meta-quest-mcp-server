@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "meta-quest": {
+      "command": "node",
+      "args": ["/path/to/meta-quest-mcp-server/dist/index.js"],
+      "env": {
+        "META_QUEST_CONFIG": "/path/to/meta-quest-config.json",
+        "OVR_PLATFORM_UTIL_PATH": "/path/to/ovr-platform-util"
+      }
+    }
+  }
+}
